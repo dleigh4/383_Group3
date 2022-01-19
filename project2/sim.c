@@ -21,7 +21,11 @@ int main(int argc, char *argv[]){
 	printProcs(pr, PROC_COUNT);
 	
 	//Run schedulers
-	
+	fcfs(pr, PROC_COUNT);
+	sjf(pr, PROC_COUNT);
+	srt(pr, PROC_COUNT);
+	rr(pr, PROC_COUNT);
+	hpf(pr, PROC_COUNT);
 	
 	destroyProcs(pr);
 	

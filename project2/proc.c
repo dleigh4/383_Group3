@@ -8,13 +8,6 @@
 #define RUNTIME_LIMIT 10.0
 #define PRIORITY_LIMIT 4
 
-//Proc struct
-struct proc {
-	char name;				//Alphabetical, starting from A
-	float arrivaltime;		//From 0 to 99 quanta
-	float runtime;			//From 0.1 to 10 quanta
-	int priority;			//1 is highest priority; 4 is lowest
-} typedef PROC;
 
 //Float comparison wrapper function
 int fltcmp (const void *a, const void *b) {

@@ -3,8 +3,14 @@
 # ifndef PROC_H
 # define PROC_H
 
-typedef struct proc PROC;
 
+//Proc struct
+struct proc {
+	char name;				//Alphabetical, starting from A
+	float arrivaltime;		//From 0 to 99 quanta
+	float runtime;			//From 0.1 to 10 quanta
+	int priority;			//1 is highest priority; 4 is lowest
+} typedef PROC;
 
 //Process generation function; includes sorting
 //Returns an array of *count* PROCs sorted in arrival order

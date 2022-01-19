@@ -23,7 +23,7 @@ int main(int argc, char *argv[]){
 	//Run schedulers
 	
 	
-	
+	destroyProcs(pr);
 	
 	return 0;	
 }

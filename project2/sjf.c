@@ -38,7 +38,7 @@ void sjf(PROC *pr, int count) {
 	//Calculate metrics for each process
 	for (int x = 0; x < count; x++) {
 		turnaround[x] = end[x] - pr[x].arrivaltime;
-		waiting[x] = turnaround[x] - runtime[x];
+		waiting[x] = turnaround[x] - pr[x].runtime;
 		response[x] = pr[x].arrivaltime - start[x];
 	}
 	

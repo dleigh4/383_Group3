@@ -37,16 +37,16 @@ void rr(PROC *pr, int count) {
 	
 	//Calculate metrics for each process
 	for (int x = 0; x < count; x++) {
-		turnaround[i] = end[i] - pr[i].arrivaltime;
-		waiting[i] = turnaround[i] - runtime[i];
-		response[i] = pr[i].arrivaltime - start[i];
+		turnaround[x] = end[x] - pr[x].arrivaltime;
+		waiting[x] = turnaround[x] - runtime[x];
+		response[x] = pr[x].arrivaltime - start[x];
 	}
 	
 	//Average metrics
 	for (int y = 0; y < count; y++) {
-		turnavg += turnaround[i];
-		waitavg += waiting[i];
-		responseavg += response[i];
+		turnavg += turnaround[y];
+		waitavg += waiting[y];
+		responseavg += response[y];
 	}
 	
 	turnavg /= count;

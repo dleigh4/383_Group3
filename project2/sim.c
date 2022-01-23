@@ -5,14 +5,15 @@
 #include <assert.h>
 #include <ctype.h>
 #include "proc.h"
+#include "node.h"
 #include "fcfs.h"
 #include "sjf.h"
 #include "srt.h"
 #include "rr.h"
 #include "hpf.h"
 
-#define PROC_COUNT 10
-#define RAND_SEED 0
+#define PROC_COUNT 30
+#define RAND_SEED 20
 
 int main(int argc, char *argv[]){
 	

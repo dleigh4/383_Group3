@@ -4,10 +4,6 @@
 #include <assert.h>
 #include "proc.h"
 
-#define ARRIVAL_LIMIT 99.0
-#define RUNTIME_LIMIT 10.0
-#define PRIORITY_LIMIT 4
-
 
 //Float comparison wrapper function
 int fltcmp (const void *a, const void *b) {
@@ -38,6 +34,8 @@ PROC *generateProcs(int seed, int count) {
 	//Assign names, runtimes, arrival times, and priorities
 	for (int i = 0; i < count; i++){
 		procarray[i].name = name++;
+		if (name == '[')
+			name = 'a';
 		procarray[i].arrivaltime = arrivalarray[i];
 		procarray[i].runtime = (float)rand() / (float)(RAND_MAX / RUNTIME_LIMIT);
 		procarray[i].priority = (rand() % PRIORITY_LIMIT) + 1;

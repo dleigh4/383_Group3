@@ -3,6 +3,10 @@
 # ifndef PROC_H
 # define PROC_H
 
+#define ARRIVAL_LIMIT 99.0
+#define RUNTIME_LIMIT 10.0
+#define PRIORITY_LIMIT 4
+
 
 //Proc struct
 struct proc {

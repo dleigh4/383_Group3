@@ -4,6 +4,7 @@
 # define sjf_H
 
 #include "proc.h"
+#include "node.h"
 
 //Shortest job first simulation function
 //Prints runtime and performance of algorithm

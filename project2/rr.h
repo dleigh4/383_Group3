@@ -5,9 +5,10 @@
 
 #include "proc.h"
 #include "node.h"
+#include "stat.h"
 
 //Round robin simulation function
 //Prints runtime and performance of algorithm
-void rr(PROC *pr, int count);
+STAT rr(PROC *pr, int count);
 
 # endif

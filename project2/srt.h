@@ -5,9 +5,10 @@
 
 #include "proc.h"
 #include "node.h"
+#include "stat.h"
 
 //Shortest remaining time simulation function
 //Prints runtime and performance of algorithm
-void srt(PROC *pr, int count);
+STAT srt(PROC *pr, int count);
 
 # endif

@@ -4,12 +4,13 @@
 #include <assert.h>
 #include "proc.h"
 #include "node.h"
+#include "stat.h"
 #include "rr.h"
 
 
 //Round robin simulation function
 //Prints runtime and performance of algorithm
-void rr(PROC *pr, int count) {
+STAT rr(PROC *pr, int count) {
 	
 	//Metric arrays: track starting and completion time of each process's execution (not from arrival)
 	//Index correlates to process ID (A -> element 0)
@@ -20,7 +21,6 @@ void rr(PROC *pr, int count) {
 	NODE *head = NULL;
 	NODE *tail = NULL;
 	NODE *ptr;
-	NODE *ptr2;
 	
 	for (int i = 0; i < count; i++) {
 		start[i] = 0;
@@ -141,4 +141,12 @@ void rr(PROC *pr, int count) {
 	
 	printf("\nAverage turnaround time: %4.2f \n Average waiting time: %4.2f \n Average response time: %4.2f \n Throughput: %d \n", turnavg, waitavg, responseavg, finished);
 	
+	
+	STAT output;
+	output.turnaround = turnavg;
+	output.waiting = waitavg;
+	output.response = responseavg;
+	output.throughput = (float)finished;
+	
+	return output;
 }

@@ -4,12 +4,13 @@
 #include <assert.h>
 #include "proc.h"
 #include "node.h"
+#include "stat.h"
 #include "sjf.h"
 
 
 //Shortest job first simulation function
 //Prints runtime and performance of algorithm
-void sjf(PROC *pr, int count) {
+STAT sjf(PROC *pr, int count) {
 	
 	//Metric arrays: track starting and completion time of each process's execution (not from arrival)
 	//Index correlates to process ID (A -> element 0)
@@ -123,5 +124,12 @@ void sjf(PROC *pr, int count) {
 	
 	printf("\nAverage turnaround time: %4.2f \n Average waiting time: %4.2f \n Average response time: %4.2f \n Throughput: %d \n", turnavg, waitavg, responseavg, finished);
 	
+	STAT output;
+	output.turnaround = turnavg;
+	output.waiting = waitavg;
+	output.response = responseavg;
+	output.throughput = (float)finished;
+	
+	return output;
 	
 }

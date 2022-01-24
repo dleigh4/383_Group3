@@ -4,12 +4,13 @@
 #include <assert.h>
 #include "proc.h"
 #include "node.h"
+#include "stat.h"
 #include "fcfs.h"
 
 
 //First-come first-served simulation function
 //Prints runtime and performance of algorithm
-void fcfs(PROC *pr, int count) {
+STAT fcfs(PROC *pr, int count) {
 	
 	//Metric arrays: track starting and completion time of each process's execution (not from arrival)
 	//Index correlates to process ID (A -> element 0)
@@ -128,6 +129,14 @@ void fcfs(PROC *pr, int count) {
 	responseavg /= count;
 	
 	printf("\nAverage turnaround time: %4.2f \n Average waiting time: %4.2f \n Average response time: %4.2f \n Throughput: %d \n", turnavg, waitavg, responseavg, finished);
+	
+	STAT output;
+	output.turnaround = turnavg;
+	output.waiting = waitavg;
+	output.response = responseavg;
+	output.throughput = (float)finished;
+	
+	return output;
 	
 	
 }

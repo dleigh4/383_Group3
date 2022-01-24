@@ -5,9 +5,10 @@
 
 #include "proc.h"
 #include "node.h"
+#include "stat.h"
 
 //First-come first-served simulation function
 //Prints runtime and performance of algorithm
-void fcfs(PROC *pr, int count);
+STAT fcfs(PROC *pr, int count);
 
 # endif

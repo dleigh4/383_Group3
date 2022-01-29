@@ -5,9 +5,9 @@
 #include <ctype.h>
 
 struct sell_arg {
-	char type;
-	int buycount;
-	int *buyers;
+	char type;			//Type of seller
+	int buycount;		//Number of buyers
+	int *buyers;		//Array of buyers
 	char **seats;		//Array of strings - assignment denoted by having assigned string rather than NULL
 	int *min;
 } typedef SELLARG;

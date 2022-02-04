@@ -308,7 +308,7 @@ PAGE lfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value o
 
 //I recommend modifying LFU for the other algorithms
 //	FIFO needs to have wraparound implemented; clear_proc and page_search should support it already
-//	LRU probably needs to keep track of the array max so that the newest access always has the highest value
+//	LRU probably needs to keep track of the array max so that the newest access always has the highest relative value
 //		(use max, declared at the top with the other variables)
 //	MFU just needs to change which index is used in the replacement case
 

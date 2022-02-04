@@ -92,6 +92,8 @@ int main(int argc, char **argv) {
 	//Initialize output arrays
 	
 	
+	mem_map[100] = '\0';
+	
 	//Generate workloads
 	JOB min_jobs[6][150];
 	float arrivals[150];
@@ -148,10 +150,7 @@ int main(int argc, char **argv) {
 	
 		//Run minute-based sim 5 times
 		
-			//Initialize tracker array
-			
-			
-			//Initialize job queue
+			//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
 			
 			
 			//Main loop

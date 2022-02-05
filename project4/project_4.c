@@ -230,11 +230,52 @@ void clear_proc(int id) {
 	for (int i = start; i < count; i++) {
 		if (replacement_arr[i % 100].job_id == id) {
 			mem_map[replacement_arr[i % 100].mem_loc] = '.';
-			init_page(&replacement_arr[i % 100], replacement_arr[(start + count - 1) % 100].job_id, replacement_arr[(start + count - 1) % 100].page_num, replacement_arr[(start +count - 1) % 100].counter, replacement_arr[(start + count - 1) % 100].mem_loc);
+			
+			remaining = count - i;
+			
+			for (int j = i; j < remaining; j++) { //Shift array
+				init_page(&replacement_arr[j % 100], replacement_arr[(j + 1) % 100].job_id, replacement_arr[(j + 1) % 100].page_num, replacement_arr[(j + 1) % 100].counter, replacement_arr[(j + 1) % 100].mem_loc);
+			}
+			
 			count--;
 			i--;
 		}
 	}
+}
+
+
+
+PAGE fifo_rep(int id, int pagenum, char sym) {	//Maintaining the replacement array as a circular queue
+												//Start of array at start, end is start + count - 1
+	PAGE output;								//Indexed in no particular order
+	int index = page_search(id, pagenum);
+	int mem_loc;
+	
+	if (index > -1) {							//Case: page in array already
+		replacement_arr[index].counter++;		//	Increment page's counter
+		output.job_id = -1;
+	} else if (count < 100) {					//Case: room to insert
+		output.job_id = -5;
+		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+			if (mem_map[i] == '.') {
+				mem_map[i] = sym;
+				break;
+			}
+		}
+		init_page(&(replacement_arr[(start + count - 1) % 100]), id, pagenum, mem_loc);
+		count++;
+	} else {									//Case: need to replace
+		index = start;								//	Swap first (first index) with new page
+		mem_loc = replacement_arr[index].mem_loc;
+		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, 0, 0);
+		init_page(&replacement_arr[index], id, pagenum, 0, mem_loc);
+		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
+		start++;								//	Shift start of queue
+	}
+	
+	qsort(replacement_arr, count, sizeof(PAGE), pgc_cmp);		//Sort array
+	
+	return output;
 }
 
 
@@ -256,7 +297,7 @@ PAGE rand_rep(int id, int pagenum, char sym) {	//Start of array is always at ind
 				break;
 			}
 		}
-		init_page(count - 1, id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
 		count++;
 	} else {									//Case: need to replace
 		index = rand() % count;
@@ -288,7 +329,7 @@ PAGE lfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value o
 				break;
 			}
 		}
-		init_page(count - 1, id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
 		count++;
 	} else {									//Case: need to replace
 		index = 0;								//	Swap LFU (first index) with new page

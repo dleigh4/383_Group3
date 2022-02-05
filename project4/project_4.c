@@ -67,7 +67,7 @@ PAGE rand_rep(int id, int pagenum, char sym);
 
 
 
-//Page array utility functions (ONLY FOR TRACKING REPLACEMENT METRICS, NOT ACTUAL DATA)
+//Page array utility functions (ONLY FOR TRACKING REPLACEMENT METRICS, NOT ACTUAL DATA LOCATIONS)
 
 //	Initializer; given pointer to page and values to use, initialize the page's values
 void init_page(PAGE *page, int id, int pagenum, int counter, int mem_loc);
@@ -147,7 +147,18 @@ int main(int argc, char **argv) {
 	
 	
 	//Run loop for each replacement algorithm
-	
+	for (int m = 0; m < 5; m++) {
+		
+		//Re-initializing data structures for this run
+		start = 0;
+		count = 0;
+		max = 0;
+		
+		for (int n = 0; n < 100; n++) 
+			mem_map[n] = '.';
+		
+		
+		
 		//Run minute-based sim 5 times
 		
 			//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
@@ -163,6 +174,7 @@ int main(int argc, char **argv) {
 			
 			
 	
+	}
 	//Print output
 	
 	//Free workload page reference arrays

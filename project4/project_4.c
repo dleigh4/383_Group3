@@ -43,7 +43,7 @@ int flt_cmp(const void *a, const void *b);
 
 
 
-/*	Replacement algorithms, called on all page accesses regardless of presence in memory
+/*	Replacement algorithms, called on all page requests regardless of presence in memory
 
 	Takes the numerical process id, page number of the current access, and character process id
 	
@@ -157,8 +157,6 @@ int main(int argc, char **argv) {
 		for (int n = 0; n < 100; n++) 
 			mem_map[n] = '.';
 		
-		
-		
 		//Run minute-based sim 5 times
 		
 			//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
@@ -175,6 +173,7 @@ int main(int argc, char **argv) {
 			
 	
 	}
+	
 	//Print output
 	
 	//Free workload page reference arrays

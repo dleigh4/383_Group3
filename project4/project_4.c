@@ -191,7 +191,7 @@ int generate_ref(int index, int pagecount) {
 	if ((rand() % 10) > 2) 
 		return index + (rand() % 3) - 1;
 	else
-		return rand() % pagecount;
+		return (rand() % (pagecount - 3) + index + 2) % pagecount;
 }
 
 

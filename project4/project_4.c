@@ -263,7 +263,6 @@ PAGE fifo_rep(int id, int pagenum, char sym) {	//Maintaining the replacement arr
 	int mem_loc;
 	
 	if (index > -1) {							//Case: page in array already
-		replacement_arr[index].counter++;		//	Increment page's counter
 		output.job_id = -1;
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
@@ -283,8 +282,6 @@ PAGE fifo_rep(int id, int pagenum, char sym) {	//Maintaining the replacement arr
 		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
 		start++;								//	Shift start of queue
 	}
-	
-	qsort(replacement_arr, count, sizeof(PAGE), pgc_cmp);		//Sort array
 	
 	return output;
 }

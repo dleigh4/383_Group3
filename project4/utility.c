@@ -64,6 +64,7 @@ void remove_value(linked_list* list, void * value)
 			list->tail = current_node->prev;
 		}
 		list->size --;
+		free(current_node->value);
 		free(current_node);
 	}
 }
@@ -84,6 +85,7 @@ void remove_node(linked_list* list, node * current_node) {
 			list->tail = current_node->prev;
 		}
 		list->size --;
+		free(current_node->value);
 		free(current_node);
 	}
 }
@@ -98,6 +100,7 @@ void remove_head(linked_list* list)
 			list->tail = current_node->prev;
 		}
 		list->size --;
+		free(current_node->value);
 		free(current_node);
 	}
 }

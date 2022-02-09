@@ -26,6 +26,7 @@ void remove_node(linked_list* ll, node* n);
 void add_after(linked_list* ll, node *after_node, void* value);
 void sort(linked_list *ll, int (*cmp)(void *value1, void *value2));
 void swap_nodes(node *a, node *b);
+void remove_head(linked_list* list);
 
 //Queue data structure
 typedef struct linked_list_structure queue;

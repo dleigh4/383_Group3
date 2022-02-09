@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <time.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
+#include <math.h>
 #include "utility.h"
 
 struct job {
@@ -17,11 +16,18 @@ struct job {
 } typedef JOB;
 
 struct page {
-	int job_id		//Process index in job array (for identification/access)
-	int page_num	//Page index in process (for identification/access)
-	int counter		//General-purpose counter for storing access information (frequency or recency)
-	int mem_loc		//Location in memory map
-} typedef PAGE
+	int job_id;		//Process index in job array (for identification/access)
+	int page_num;	//Page index in process (for identification/access)
+	int counter;		//General-purpose counter for storing access information (frequency or recency)
+	int mem_loc;		//Location in memory map
+} typedef PAGE;
+
+struct ref {
+	int job_id;
+	int index;
+	float time;
+	int last;
+} typedef REF;
 
 //Page replacement array variables
 PAGE replacement_arr[100];
@@ -41,6 +47,8 @@ int generate_dur(void);
 //Float comparison function for sorting (via library qsort function)
 int flt_cmp(const void *a, const void *b);
 
+//Reference comparison function for sorting (via linked list sort function)
+int ref_cmp(void *a, void *b);
 
 
 /*	Replacement algorithms, called on all page requests regardless of presence in memory
@@ -65,7 +73,7 @@ PAGE lfu_rep(int id, int pagenum, char sym);
 PAGE mfu_rep(int id, int pagenum, char sym);
 PAGE rand_rep(int id, int pagenum, char sym);
 
-
+PAGE (*rep[5]) (int id, int pagenum, char sym);
 
 //Page array utility functions (ONLY FOR TRACKING REPLACEMENT METRICS, NOT ACTUAL DATA LOCATIONS)
 
@@ -83,30 +91,61 @@ int page_search(int id, int pagenum);
 int pgc_cmp(const void *a, const void *b);
 
 //	Clear process data; given a process's conclusion, remove all of its array entries and decrement count for each
-void clear_proc(int id);
+void clear_proc(int id, char char_id);
 
 
 
 int main(int argc, char **argv) {
+
+	freopen("output.txt", "w", stdout);
+
+	srand(0);
 	
 	//Initialize output arrays
+	float proc_count[5];
+	int page_hit[5];
+	int page_miss[5];
 	
+	for (int h; h < 5; h++) {
+		proc_count[h] = 0;
+		page_hit[h] = 0;
+		page_miss[h] = 0;
+	}
 	
 	mem_map[100] = '\0';
+	float time;
+	int finished;
+	PAGE op_out;
 	
 	//Generate workloads
 	JOB min_jobs[6][150];
 	float arrivals[150];
 	char id;
+	int proc_it;
+	int proc_fl;
+	linked_list *refs;
+	REF *pr;
+	REF pr_value;
+	float offset;
+	
+	rep[0] = fifo_rep;
+	rep[1] = lru_rep;
+	rep[2] = lfu_rep;
+	rep[3] = mfu_rep;
+	rep[4] = rand_rep;
 	
 	for (int i = 0; i < 6; i++) {
 		
 		id = '!';
 		
 		for (int j = 0; j < 150; j++) {
+		
+			//Rollover if id becomes a non-ascii designation or DEL
+			if (id >= 127)
+				id = '!';
 			
-			//Don't use '.' or DEL as a process id
-			if (id == '.' || id == 127)
+			//Don't use '.'as a process id
+			if (id == '.')
 				id++;
 			
 			//Generate job information independently from arrival time (to be sorted and assigned later)
@@ -126,7 +165,6 @@ int main(int argc, char **argv) {
 				default:
 					min_jobs[i][j].size = 31;
 			}
-			
 			min_jobs[i][j].duration = generate_dur();
 			min_jobs[i][j].accesses = (int *)malloc(sizeof(int) * min_jobs[i][j].duration);
 			min_jobs[i][j].accesses[0] = rand() % min_jobs[i][j].size;
@@ -134,49 +172,318 @@ int main(int argc, char **argv) {
 			for (int k = 1; k < min_jobs[i][j].duration; k++) 
 				min_jobs[i][j].accesses[k] = generate_ref(min_jobs[i][j].accesses[k - 1], min_jobs[i][j].size);
 			
-			arrivals[j] = (((float) * rand()) / ((float) * RAND_MAX)) * 600.0;
+			arrivals[j] = (((float)rand()) / ((float)RAND_MAX)) * 600.0;
 		}
 		
 		//Sort arrival times and assign to job list
 		qsort(arrivals, 150, sizeof(int), flt_cmp);
 		for (int l = 0; l < 150; l++) 
-			min_jobs[i][l].arrival = arrival[l];
+			min_jobs[i][l].arrival = arrivals[l];
 		
 		
 	}
 	
-	
 	//Run loop for each replacement algorithm
 	for (int m = 0; m < 5; m++) {
+			
+		switch(m) {
+			case 0:
+				printf("\n\n\nFIFO\n");
+				break;
+			case 1:
+				printf("\n\n\nLRU\n");
+				break;
+			case 2:
+				printf("\n\n\nLFU\n");
+				break;
+			case 3:
+				printf("\n\n\nMFU\n");
+				break;
+			case 4:
+				printf("\n\n\nRAND\n");
+				break;
+		}
 		
+		//Run minute-based sim 5 times
+		for (int n = 0; n < 5; n++) {
+			
+			//Re-initializing data structures for this run
+			start = 0;
+			count = 0;
+			max = 0;
+			time = 0.0;
+			finished = 0;
+			proc_it = 0;
+			proc_fl = 0;
+			refs = create_linked_list();
+			printf("\n\n\nGeneral execution\n");
+		
+			//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
+			for (int o = 0; o < 100; o++) 
+				mem_map[o] = '.';
+			
+			//Main loop; time measured in deciseconds/100 milliseconds
+			while (time < 600.0) {
+				
+				//Check job list for new jobs, shifting iterator to next pending job
+				while ( (min_jobs[m][proc_it].arrival <= time) && (proc_it < 150)) {
+					//printf("\nchecking");
+					
+					//printf("a\n");
+					if (count < 97 || proc_fl == 1) {		//Queue job based on page count or leaving process
+						
+						offset = time;
+						
+						for(int p = 0; p < min_jobs[m][proc_it].duration - 1; p++) {
+							pr = (REF *)malloc(sizeof(REF));
+							pr->job_id = proc_it;
+							pr->index = min_jobs[m][proc_it].accesses[p];
+							pr->time = offset;
+							pr->last = 0;
+							offset += 1.0;
+							
+							add_node(refs, pr);
+						}
+						
+						pr = (REF *)malloc(sizeof(REF));
+						pr->job_id = proc_it;
+						pr->index = min_jobs[m][proc_it].accesses[min_jobs[m][proc_it].duration - 1];
+						pr->time = offset;
+						pr->last = 1;
+						
+						add_node(refs, pr);
+						
+						sort(refs, ref_cmp);
+						
+						printf("\n%2.2f \t%c \tENT \t%d \t %2.2f \n%s", time / 10, min_jobs[m][pr->job_id].char_id, min_jobs[m][pr->job_id].size, (float)(min_jobs[m][pr->job_id].duration) / 10, mem_map);
+						
+						proc_fl = 0;
+						proc_it++;
+					}
+					else
+						break;
+				}
+				
+				//printf("b\n");
+				
+				//Check queue for any accesses active this timestamp
+				while (refs->head != NULL) {
+					//printf("\n%d\n", refs->head);
+					
+					if (((REF *)(refs->head->value))->time <= time && ((REF *)(refs->head->value))->time <= 600.0) {
+						finished++;
+					
+						pr = refs->head->value;
+						pr_value = *(REF *)(refs->head->value);
+						op_out = (*rep[m])(pr->job_id, pr->index, min_jobs[m][pr->job_id].char_id);
+						
+						if (op_out.job_id == -1) {
+							page_hit[m]++;
+							//printf("\n%2.2f \t%c \t%d \tHIT", pr->time / 10, min_jobs[m][pr->job_id].char_id, pr->index); 
+						} else if (op_out.job_id == -5) {
+							//printf("\n%2.2f \t%c \t%d \tMISS", pr->time / 10, min_jobs[m][pr->job_id].char_id, pr->index); 
+							page_miss[m]++;
+							(void)0;
+
+						} else {
+							page_miss[m]++;
+							//printf("\n%2.2f \t%c \t%d \tMISS\t%c %d", pr->time / 10, min_jobs[m][pr->job_id].char_id, pr->index, min_jobs[m][op_out.job_id].char_id, op_out.page_num); 
+							(void)0;
+						}
+						
+						remove_head(refs);
+						
+						if (pr_value.last == 1) {
+							printf("\n%2.2f \t%c \tEXT \t%d \t %2.2f \n%s", time / 10, min_jobs[m][pr_value.job_id].char_id, min_jobs[m][pr_value.job_id].size, (float)(min_jobs[m][pr_value.job_id].duration) / 10, mem_map);
+							proc_count[m]++;
+							clear_proc(pr_value.job_id, min_jobs[m][pr_value.job_id].char_id);
+							proc_fl = 1;
+						}
+					}
+					else
+						break;
+					
+					
+				}
+				
+				
+				//Increment time to next operation (between arriving processes and pending references)
+				if ((proc_it < 150 && time < min_jobs[m][proc_it].arrival)) {
+					time = min_jobs[m][proc_it].arrival;
+				}
+				if (refs->head != NULL) {
+					time = ((REF *)(refs->head->value))->time;
+					//printf("\n%2.2f %2.2f %2.2f %d", time, min_jobs[m][proc_it].arrival, ((REF *)(refs->head->value))->time, proc_it);
+				}
+				
+				//else
+					//printf("\n%2.2f %2.2f %d %d", time, min_jobs[m][proc_it].arrival, finished, proc_it);
+				
+				//Terminate if done iterating
+				if ((proc_it > 149)) {
+					time = 610.0;
+				}
+				
+				
+			}
+			
+			//Clear data
+			while (refs->head != NULL) {
+				remove_head(refs);
+			}
+			
+		}
+		
+		//Run reference-based sim
 		//Re-initializing data structures for this run
 		start = 0;
 		count = 0;
 		max = 0;
+		time = 0.0;
+		finished = 0;
+		proc_it = 0;
+		proc_fl = 0;
+		refs = create_linked_list();
+		printf("\n\n\n100-reference run\n");
+	
+		//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
+		for (int o = 0; o < 100; o++) 
+			mem_map[o] = '.';
 		
-		for (int n = 0; n < 100; n++) 
-			mem_map[n] = '.';
+		//Main loop; time measured in deciseconds/100 milliseconds
+		while (finished < 100) {
+			
+			//Check job list for new jobs, shifting iterator to next pending job
+			while ( (min_jobs[m][proc_it].arrival <= time) && (proc_it < 150)) {
+				//printf("\nchecking");
+				
+				//printf("a\n");
+				if (count < 97 || proc_fl == 1) {		//Queue job based on page count or leaving process
+					
+					offset = time;
+					
+					for(int p = 0; p < min_jobs[m][proc_it].duration - 1; p++) {
+						pr = (REF *)malloc(sizeof(REF));
+						pr->job_id = proc_it;
+						pr->index = min_jobs[m][proc_it].accesses[p];
+						pr->time = offset;
+						pr->last = 0;
+						offset += 1.0;
+						
+						add_node(refs, pr);
+					}
+					
+					pr = (REF *)malloc(sizeof(REF));
+					pr->job_id = proc_it;
+					pr->index = min_jobs[m][proc_it].accesses[min_jobs[m][proc_it].duration - 1];
+					pr->time = offset;
+					pr->last = 1;
+					
+					add_node(refs, pr);
+					
+					sort(refs, ref_cmp);
+					
+					printf("\n%2.2f \t%c \tENT \t%d \t %2.2f \n%s", time / 10, min_jobs[m][pr->job_id].char_id, min_jobs[m][pr->job_id].size, (float)(min_jobs[m][pr->job_id].duration) / 10, mem_map);
+					
+					proc_fl = 0;
+					proc_it++;
+				}
+				else
+					break;
+			}
+			
+			//printf("b\n");
+			
+			//Check queue for any accesses active this timestamp
+			while (refs->head != NULL) {
+				//printf("\n%d\n", refs->head);
+				
+				if (((REF *)(refs->head->value))->time <= time && finished < 100) {
+					finished++;
+				
+					pr = refs->head->value;
+					pr_value = *(REF *)(refs->head->value);
+					op_out = (*rep[m])(pr->job_id, pr->index, min_jobs[m][pr->job_id].char_id);
+					
+					if (op_out.job_id == -1) {
+						page_hit[m]++;
+						printf("\n%2.2f \t%c \t%d \tHIT", pr->time / 10, min_jobs[m][pr->job_id].char_id, pr->index); 
+					} else if (op_out.job_id == -5) {
+						printf("\n%2.2f \t%c \t%d \tMISS", pr->time / 10, min_jobs[m][pr->job_id].char_id, pr->index); 
+						page_miss[m]++;
+						(void)0;
+
+					} else {
+						page_miss[m]++;
+						printf("\n%2.2f \t%c \t%d \tMISS\t%c %d", pr->time / 10, min_jobs[m][pr->job_id].char_id, pr->index, min_jobs[m][op_out.job_id].char_id, op_out.page_num); 
+						(void)0;
+					}
+					
+					remove_head(refs);
+					
+					if (pr_value.last == 1) {
+						printf("\n%2.2f \t%c \tEXT \t%d \t %2.2f \n%s", time / 10, min_jobs[m][pr_value.job_id].char_id, min_jobs[m][pr_value.job_id].size, (float)(min_jobs[m][pr_value.job_id].duration) / 10, mem_map);
+						//proc_count[m]++;
+						clear_proc(pr_value.job_id, min_jobs[m][pr_value.job_id].char_id);
+						proc_fl = 1;
+					}
+				}
+				else
+					break;
+				
+				
+			}
+			
+			
+			//Increment time to next operation (between arriving processes and pending references)
+			if ((proc_it < 150 && time < min_jobs[m][proc_it].arrival)) {
+				time = min_jobs[m][proc_it].arrival;
+			}
+			if (refs->head != NULL) {
+				time = ((REF *)(refs->head->value))->time;
+				//printf("\n%2.2f %2.2f %2.2f %d", time, min_jobs[m][proc_it].arrival, ((REF *)(refs->head->value))->time, proc_it);
+			}
+			
+			//else
+				//printf("\n%2.2f %2.2f %d %d", time, min_jobs[m][proc_it].arrival, finished, proc_it);
+			
+			//Terminate if done iterating
+			if ((proc_it > 149)) {
+				time = 610.0;
+			}
+			
+			
+		}
 		
-		//Run minute-based sim 5 times
-		
-			//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
-			
-			
-			//Main loop
-			
-				//Check job list;
-			
-			
-		//Run reference-based sim
-		
+		//Clear data
+		while (refs->head != NULL) {
+			remove_head(refs);
+		}
 			
 			
 	
 	}
 	
 	//Print output
+	for (int q = 0; q < 5; q++) {
+		page_hit[q] /= 5;
+		page_miss[q] /= 5;
+		proc_count[q] /= 5;
+	}
+	
+	printf("\nAverage Performance \nAlg \tHits \tMisses \tRatio \tProcesses in 100 references");
+	printf("\nFIFO \t%d \t%d \t%1.3f \t%3.2f", page_hit[0], page_miss[0], ((float)page_hit[0])/((float)page_miss[0]), proc_count[0]);
+	printf("\nLRU \t%d \t%d \t%1.3f \t%3.2f", page_hit[1], page_miss[1], ((float)page_hit[1])/((float)page_miss[1]), proc_count[1]);
+	printf("\nLFU \t%d \t%d \t%1.3f \t%3.2f", page_hit[2], page_miss[2], ((float)page_hit[2])/((float)page_miss[2]), proc_count[2]);
+	printf("\nMFU \t%d \t%d \t%1.3f \t%3.2f", page_hit[3], page_miss[3], ((float)page_hit[3])/((float)page_miss[3]), proc_count[3]);
+	printf("\nRAND \t%d \t%d \t%1.3f \t%3.2f\n", page_hit[4], page_miss[4], ((float)page_hit[4])/((float)page_miss[4]), proc_count[4]);
 	
 	//Free workload page reference arrays
+	for (int x = 0; x < 6; x++) {
+		for (int y = 0; y < 150; y++) {
+			free(min_jobs[x][y].accesses);
+		}
+	}
 }
 
 
@@ -189,9 +496,9 @@ int flt_cmp(const void *a, const void *b) {
 
 int generate_ref(int index, int pagecount) {
 	if ((rand() % 10) > 2) 
-		return index + (rand() % 3) - 1;
-	else
-		return (rand() % (pagecount - 3) + index + 2) % pagecount;
+		return (index + (rand() % 3) - 1 + pagecount) % pagecount;
+	
+	return (rand() % (pagecount - 3) + index + 2 + pagecount) % pagecount;
 }
 
 
@@ -211,8 +518,8 @@ void init_page(PAGE *page, int id, int pagenum, int counter, int mem_loc) {
 
 
 
-int page_check(int id, int pagenum, PAGE page) {
-	if (page->job_id == id && page->page_num == pagenum) {
+int page_check(int id, int pagenum, PAGE pg) {
+	if (pg.job_id == id && pg.page_num == pagenum) {
 		return 1;
 	} else
 		return -1;
@@ -222,8 +529,9 @@ int page_check(int id, int pagenum, PAGE page) {
 
 int page_search(int id, int pagenum) {
 	for (int i = start; i < start + count; i++) {
-		if page_check(id, pagenum, replacement_arr[i % 100])
+		if (page_check(id, pagenum, replacement_arr[i % 100]) == 1) {
 			return i;
+		}
 	}
 	
 	return -1;
@@ -237,20 +545,36 @@ int pgc_cmp(const void *a, const void *b) {		//Takes pointers to PAGEs
 
 
 
-void clear_proc(int id) {
-	for (int i = start; i < count; i++) {
-		if (replacement_arr[i % 100].job_id == id) {
-			mem_map[replacement_arr[i % 100].mem_loc] = '.';
+int ref_cmp(void *a, void *b) {		//Takes pointers to REFs
+	return ( ((REF *)a)->time > ((REF *)b)->time );
+}
+
+
+
+void clear_proc(int id, char char_id) {
+	int remaining;
+	
+	for (int i = 0; i < count; i++) {
+		//printf("\nprecheck %d %d\n", i, count);
+		if (replacement_arr[(i + start + 100) % 100].job_id == id) {
+			//printf("\n%d\n", replacement_arr[(i + 100) % 100].mem_loc);
 			
 			remaining = count - i;
-			
+			//printf("\npreshift\n");
 			for (int j = i; j < remaining; j++) { //Shift array
-				init_page(&replacement_arr[j % 100], replacement_arr[(j + 1) % 100].job_id, replacement_arr[(j + 1) % 100].page_num, replacement_arr[(j + 1) % 100].counter, replacement_arr[(j + 1) % 100].mem_loc);
+				//printf("\n%d %d %d\n", replacement_arr[(j + 100) % 100].job_id, replacement_arr[(j + 101) % 100].job_id, id);
+				init_page(&replacement_arr[(j + start + 100) % 100], replacement_arr[(j + start + 101) % 100].job_id, replacement_arr[(j + start + 101) % 100].page_num, replacement_arr[(j + start + 101) % 100].counter, replacement_arr[(j + start + 101) % 100].mem_loc % 100);
 			}
+			//printf("\npostshift\n");
 			
 			count--;
 			i--;
 		}
+	}
+	
+	for (int k = 0; k < 100; k++) {
+		if (mem_map[k] == char_id)
+			mem_map[k] = '.';
 	}
 }
 
@@ -266,19 +590,20 @@ PAGE fifo_rep(int id, int pagenum, char sym) {	//Maintaining the replacement arr
 		output.job_id = -1;
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
+				mem_loc = i;
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[(start + count - 1) % 100]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[(start + count - 1) % 100]), id, pagenum, 0, mem_loc % 100);
 		count++;
 	} else {									//Case: need to replace
-		index = start;								//	Swap first (first index) with new page
+		index = (start + 100) % 100;								//	Swap first (first index) with new page
 		mem_loc = replacement_arr[index].mem_loc;
 		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, 0, 0);
-		init_page(&replacement_arr[index], id, pagenum, 0, mem_loc);
+		init_page(&replacement_arr[index], id, pagenum, 0, mem_loc % 100);
 		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
 		start++;								//	Shift start of queue
 	}
@@ -299,21 +624,58 @@ PAGE rand_rep(int id, int pagenum, char sym) {	//Start of array is always at ind
 		
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
+				mem_loc = i;
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, 0, mem_loc % 100);
 		count++;
+		
 	} else {									//Case: need to replace
 		index = rand() % count;
 		mem_loc = replacement_arr[index].mem_loc;
 		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, 0, 0);
-		init_page(&replacement_arr[index], id, pagenum, 0, mem_loc);
+		init_page(&replacement_arr[index], id, pagenum, 0, mem_loc % 100);
 		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
 	}
+	
+	return output;
+}
+
+
+
+PAGE lru_rep(int id, int pagenum, char sym) {	//Sorting array by counter value on each access
+												//Start of array is always at index 0, end is count - 1
+	PAGE output;								//Indexed in non-decreasing order
+	int index = page_search(id, pagenum);
+	int mem_loc;
+	
+	if (index > -1) {							//Case: page in array already
+		replacement_arr[index].counter = max++;		//	Increment page's counter
+		output.job_id = -1;
+	} else if (count < 100) {					//Case: room to insert
+		output.job_id = -5;
+		for (int i = 0; i < 100; i++) {			//	Look for open location in memory map
+			if (mem_map[i] == '.') {
+				mem_loc = i;
+				mem_map[i] = sym;
+				break;
+			}
+		}
+		init_page(&(replacement_arr[count - 1]), id, pagenum, max++, mem_loc % 100);
+		count++;
+	} else {									//Case: need to replace
+		index = 0;								//	Swap LRU (first index) with new page
+		mem_loc = replacement_arr[index].mem_loc;
+		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, 0, 0);
+		init_page(&replacement_arr[index], id, pagenum, max++, mem_loc % 100);
+		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
+	}
+	
+	qsort(replacement_arr, count, sizeof(PAGE), pgc_cmp);		//Sort array
 	
 	return output;
 }
@@ -331,19 +693,55 @@ PAGE lfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value o
 		output.job_id = -1;
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
+				mem_loc = i;
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, 0, mem_loc % 100);
 		count++;
 	} else {									//Case: need to replace
 		index = 0;								//	Swap LFU (first index) with new page
 		mem_loc = replacement_arr[index].mem_loc;
 		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, 0, 0);
-		init_page(&replacement_arr[index], id, pagenum, 0, mem_loc);
+		init_page(&replacement_arr[index], id, pagenum, 1, mem_loc % 100);
+		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
+	}
+	
+	qsort(replacement_arr, count, sizeof(PAGE), pgc_cmp);		//Sort array
+	
+	return output;
+}
+
+
+
+PAGE mfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value on each access
+												//Start of array is always at index 0, end is count - 1
+	PAGE output;								//Indexed in non-decreasing order
+	int index = page_search(id, pagenum);
+	int mem_loc;
+	
+	if (index > -1) {							//Case: page in array already
+		replacement_arr[index].counter++;		//	Increment page's counter
+		output.job_id = -1;
+	} else if (count < 100) {					//Case: room to insert
+		output.job_id = -5;
+		for (int i = 0; i < 100; i++) {			//	Look for open location in memory map
+			if (mem_map[i] == '.') {
+				mem_loc = i;
+				mem_map[i] = sym;
+				break;
+			}
+		}
+		init_page(&(replacement_arr[count - 1]), id, pagenum, 0, mem_loc % 100);
+		count++;
+	} else {									//Case: need to replace
+		index = count - 1;								//	Swap MFU (last index) with new page
+		mem_loc = replacement_arr[index].mem_loc;
+		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, 0, 0);
+		init_page(&replacement_arr[index], id, pagenum, 1, mem_loc % 100);
 		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
 	}
 	

@@ -353,6 +353,37 @@ PAGE lfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value o
 }
 
 
+PAGE mfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value on each access
+												//Start of array is always at index 0, end is count - 1
+	PAGE output;								//Indexed in non-decreasing order
+	int index = page_search(id, pagenum);
+	int mem_loc;
+	
+	if (index > -1) {							//Case: page in array already
+		replacement_arr[index].counter++;		//	Increment page's counter
+		output.job_id = -1;
+	} else if (count < 100) {					//Case: room to insert
+		output.job_id = -5;
+		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+			if (mem_map[i] == '.') {
+				mem_map[i] = sym;
+				break;
+			}
+		}
+		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
+		count++;
+	} else {									//Case: need to replace
+		index = 0;								//	Swap MFU (first index) with new page
+		mem_loc = replacement_arr[index].mem_loc;
+		init_page(&output, replacement_arr[index].job_id, replacement_arr[index].page_num, count, 0);
+		init_page(&replacement_arr[index], id, pagenum, count, mem_loc);
+		mem_map[mem_loc] = sym;					//	Rewrite location in memory map
+	}
+	
+	qsort(replacement_arr, count, sizeof(PAGE), pgc_cmp);		//Sort array
+	
+	return output;
+}
 
 //I recommend modifying LFU for the other algorithms
 //	FIFO needs to have wraparound implemented; clear_proc and page_search should support it already

@@ -187,9 +187,7 @@ int main(int argc, char **argv) {
 	}
 	
 	//Print output
-
-	printf('I drop out we all drop out :)');
-	printf('needs ;');
+	
 	//Free workload page reference arrays
 	clear_proc(id);
 }

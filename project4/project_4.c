@@ -17,11 +17,11 @@ struct job {
 } typedef JOB;
 
 struct page {
-	int job_id		//Process index in job array (for identification/access)
-	int page_num	//Page index in process (for identification/access)
-	int counter		//General-purpose counter for storing access information (frequency or recency)
-	int mem_loc		//Location in memory map
-} typedef PAGE
+	int job_id;		//Process index in job array (for identification/access)
+	int page_num;	//Page index in process (for identification/access)
+	int counter;		//General-purpose counter for storing access information (frequency or recency)
+	int mem_loc;		//Location in memory map
+} typedef PAGE;
 
 //Page replacement array variables
 PAGE replacement_arr[100];
@@ -73,7 +73,7 @@ PAGE rand_rep(int id, int pagenum, char sym);
 void init_page(PAGE *page, int id, int pagenum, int counter, int mem_loc);
 
 //	Comparison; given process id and page number, return whether input PAGE is equivalent
-int page_check(int id, int pagenum, PAGE page);
+int page_check(int id, int pagenum, PAGE *page);
 
 //	Array search; given process id and page number, return the array index it was found in or return -1 if not found
 //		(based on page replacement array variables replacement_arr, start, and count)
@@ -134,13 +134,13 @@ int main(int argc, char **argv) {
 			for (int k = 1; k < min_jobs[i][j].duration; k++) 
 				min_jobs[i][j].accesses[k] = generate_ref(min_jobs[i][j].accesses[k - 1], min_jobs[i][j].size);
 			
-			arrivals[j] = (((float) * rand()) / ((float) * RAND_MAX)) * 600.0;
+			arrivals[j] = (((float)rand()) / ((float)RAND_MAX)) * 600.0;
 		}
 		
 		//Sort arrival times and assign to job list
 		qsort(arrivals, 150, sizeof(int), flt_cmp);
 		for (int l = 0; l < 150; l++) 
-			min_jobs[i][l].arrival = arrival[l];
+			min_jobs[i][l].arrival = arrivals[l];
 		
 		
 	}
@@ -154,13 +154,25 @@ int main(int argc, char **argv) {
 		count = 0;
 		max = 0;
 		
-		for (int n = 0; n < 100; n++) 
+		for (int n = 0; n < 100; n++) {
 			mem_map[n] = '.';
 		
-		//Run minute-based sim 5 times
-		
+		//Run minute-based sim 5 timesd
+
+			switch(m){
+				case 0:fifo_rep(id, start, mem_map[n]);
+				case 1:lru_rep(id, max, mem_map[n]);
+				case 2:lfu_rep(id, count, mem_map[n]);
+				case 3:mfu_rep(id, count, mem_map[n]);
+				case 4:rand_rep(id, count, mem_map[n]);
+				}
+		}
+
 			//Re-initialize memory map (only locations 0-99, where 100 is the terminating char)
-			
+			for (int n = 0; n < 100; n++) {
+				mem_map[n] = '.';
+			}
+			mem_map[100] = '\0';
 			
 			//Main loop
 			
@@ -175,8 +187,11 @@ int main(int argc, char **argv) {
 	}
 	
 	//Print output
-	
+
+	printf('I drop out we all drop out :)');
+	printf('needs ;');
 	//Free workload page reference arrays
+	clear_proc(id);
 }
 
 
@@ -211,7 +226,7 @@ void init_page(PAGE *page, int id, int pagenum, int counter, int mem_loc) {
 
 
 
-int page_check(int id, int pagenum, PAGE page) {
+int page_check(int id, int pagenum, PAGE *page) {
 	if (page->job_id == id && page->page_num == pagenum) {
 		return 1;
 	} else
@@ -222,7 +237,7 @@ int page_check(int id, int pagenum, PAGE page) {
 
 int page_search(int id, int pagenum) {
 	for (int i = start; i < start + count; i++) {
-		if page_check(id, pagenum, replacement_arr[i % 100])
+		if (page_check(id, pagenum, &replacement_arr[i % 100]))
 			return i;
 	}
 	
@@ -242,7 +257,7 @@ void clear_proc(int id) {
 		if (replacement_arr[i % 100].job_id == id) {
 			mem_map[replacement_arr[i % 100].mem_loc] = '.';
 			
-			remaining = count - i;
+			int remaining = count - i;
 			
 			for (int j = i; j < remaining; j++) { //Shift array
 				init_page(&replacement_arr[j % 100], replacement_arr[(j + 1) % 100].job_id, replacement_arr[(j + 1) % 100].page_num, replacement_arr[(j + 1) % 100].counter, replacement_arr[(j + 1) % 100].mem_loc);
@@ -266,13 +281,13 @@ PAGE fifo_rep(int id, int pagenum, char sym) {	//Maintaining the replacement arr
 		output.job_id = -1;
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0, mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[(start + count - 1) % 100]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[(start + count - 1) % 100]), id, pagenum, count,mem_loc);
 		count++;
 	} else {									//Case: need to replace
 		index = start;								//	Swap first (first index) with new page
@@ -299,13 +314,13 @@ PAGE rand_rep(int id, int pagenum, char sym) {	//Start of array is always at ind
 		
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0, mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, count,mem_loc);
 		count++;
 	} else {									//Case: need to replace
 		index = rand() % count;
@@ -331,13 +346,13 @@ PAGE lfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value o
 		output.job_id = -1;
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0, mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, count, mem_loc);
 		count++;
 	} else {									//Case: need to replace
 		index = 0;								//	Swap LFU (first index) with new page
@@ -364,13 +379,13 @@ PAGE mfu_rep(int id, int pagenum, char sym) {	//Sorting array by counter value o
 		output.job_id = -1;
 	} else if (count < 100) {					//Case: room to insert
 		output.job_id = -5;
-		for (mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
+		for (int i = 0, mem_loc = 0; i < 100; i++) {			//	Look for open location in memory map
 			if (mem_map[i] == '.') {
 				mem_map[i] = sym;
 				break;
 			}
 		}
-		init_page(&(replacement_arr[count - 1]), id, pagenum, mem_loc);
+		init_page(&(replacement_arr[count - 1]), id, pagenum, count, mem_loc);
 		count++;
 	} else {									//Case: need to replace
 		index = 0;								//	Swap MFU (first index) with new page
